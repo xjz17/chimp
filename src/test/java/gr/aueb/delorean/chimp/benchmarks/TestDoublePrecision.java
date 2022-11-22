@@ -43,11 +43,14 @@ public class TestDoublePrecision {
 
 	private static final int MINIMUM_TOTAL_BLOCKS = 50_000;
 	private static String[] FILENAMES = {
-	        "/city_temperature.csv.gz",
-	        "/Stocks-Germany-sample.txt.gz",
-	        "/SSD_HDD_benchmarks.csv.gz"
+//            "/repeat.csv.gz"
+            "/repeat-data-cssc0.csv.gz"
+//            "/repeat-data-0.8-random.csv.gz"
+//	        "/SSD_HDD_benchmarks.csv.gz"
 			};
 
+//	        "/city_temperature.csv.gz",
+//	        "/Stocks-Germany-sample.txt.gz",
 	@Test
 	public void testChimp128() throws IOException {
 		for (String filename : FILENAMES) {
@@ -65,6 +68,7 @@ public class TestDoublePrecision {
 				ChimpN compressor = new ChimpN(128);
 				long start = System.nanoTime();
 				for (double value : values) {
+//                    System.out.println(" value: "+value);
 					compressor.addValue(value);
 				}
 		        compressor.close();
@@ -82,7 +86,9 @@ public class TestDoublePrecision {
 
 
 			}
-			System.out.println(String.format("Chimp128: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+//            System.out.println(" totalSize:"+totalSize);
+//            System.out.println(" totalBlocks:"+totalBlocks);
+			System.out.println(String.format("Chimp128: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
 		}
 	}
 
@@ -102,6 +108,7 @@ public class TestDoublePrecision {
                 }
                 Chimp compressor = new Chimp();
                 long start = System.nanoTime();
+//                System.out.println(values.length);
                 for (double value : values) {
                     compressor.addValue(value);
                 }
@@ -119,7 +126,9 @@ public class TestDoublePrecision {
                 }
 
             }
-            System.out.println(String.format("Chimp: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+//			System.out.println(" totalSize:"+totalSize);
+//			System.out.println(" totalBlocks:"+totalBlocks);
+            System.out.println(String.format("Chimp: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
@@ -161,7 +170,7 @@ public class TestDoublePrecision {
                 }
 
             }
-            System.out.println(String.format("Gorilla: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("Gorilla: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
@@ -201,47 +210,47 @@ public class TestDoublePrecision {
                 assertArrayEquals(dest, values);
 
             }
-            System.out.println(String.format("FPC: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("FPC: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
-	   @Test
-	    public void testChimp128NoIndex() throws IOException {
-	        for (String filename : FILENAMES) {
-	            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-	            long totalSize = 0;
-	            float totalBlocks = 0;
-	            double[] values;
-	            long encodingDuration = 0;
-	            long decodingDuration = 0;
-	            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-	                if (values == null) {
-	                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-	                    values = timeseriesFileReader.nextBlock();
-	                }
-	                ChimpNNoIndex compressor = new ChimpNNoIndex(128);
-	                long start = System.nanoTime();
-	                for (double value : values) {
-	                    compressor.addValue(value);
-	                }
-	                compressor.close();
-	                encodingDuration += System.nanoTime() - start;
-	                totalSize += compressor.getSize();
-	                totalBlocks += 1;
-
-	                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
-	                start = System.nanoTime();
-	                List<Double> uncompressedValues = d.getValues();
-	                decodingDuration += System.nanoTime() - start;
-	                for(int i=0; i<values.length; i++) {
-	                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
-	                }
-
-
-	            }
-	            System.out.println(String.format("Chimp128-no-index: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
-	        }
-	    }
+//	   @Test
+//	    public void testChimp128NoIndex() throws IOException {
+//	        for (String filename : FILENAMES) {
+//	            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//	            long totalSize = 0;
+//	            float totalBlocks = 0;
+//	            double[] values;
+//	            long encodingDuration = 0;
+//	            long decodingDuration = 0;
+//	            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//	                if (values == null) {
+//	                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//	                    values = timeseriesFileReader.nextBlock();
+//	                }
+//	                ChimpNNoIndex compressor = new ChimpNNoIndex(128);
+//	                long start = System.nanoTime();
+//	                for (double value : values) {
+//	                    compressor.addValue(value);
+//	                }
+//	                compressor.close();
+//	                encodingDuration += System.nanoTime() - start;
+//	                totalSize += compressor.getSize();
+//	                totalBlocks += 1;
+//
+//	                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//	                start = System.nanoTime();
+//	                List<Double> uncompressedValues = d.getValues();
+//	                decodingDuration += System.nanoTime() - start;
+//	                for(int i=0; i<values.length; i++) {
+//	                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//	                }
+//
+//
+//	            }
+//	            System.out.println(String.format("Chimp128-no-index: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+//	        }
+//	    }
 
 
     @Test
@@ -296,7 +305,7 @@ public class TestDoublePrecision {
                     assertEquals(values[i], uncompressed[i], "Value did not match");
                 }
             }
-            System.out.println(String.format("Snappy: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("Snappy: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
@@ -353,7 +362,7 @@ public class TestDoublePrecision {
                     assertEquals(values[i], uncompressed[i], "Value did not match");
                 }
             }
-            System.out.println(String.format("Zstd: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("Zstd: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
@@ -404,7 +413,7 @@ public class TestDoublePrecision {
                     assertEquals(values[i], uncompressed[i], "Value did not match");
                 }
             }
-            System.out.println(String.format("LZ4: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("LZ4: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
@@ -455,7 +464,7 @@ public class TestDoublePrecision {
                     assertEquals(values[i], uncompressed[i], "Value did not match");
                 }
             }
-            System.out.println(String.format("Brotli: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("Brotli: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
@@ -511,7 +520,7 @@ public class TestDoublePrecision {
                     assertEquals(values[i], uncompressed[i], "Value did not match");
                 }
             }
-            System.out.println(String.format("Xz: %s - Bits/value: %.2f, Compression time per block: %.2f, Decompression time per block: %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / totalBlocks, decodingDuration / totalBlocks));
+            System.out.println(String.format("Xz: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
 
