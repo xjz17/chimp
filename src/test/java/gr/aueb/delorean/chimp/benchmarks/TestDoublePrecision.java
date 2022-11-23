@@ -44,175 +44,497 @@ public class TestDoublePrecision {
 	private static final int MINIMUM_TOTAL_BLOCKS = 50_000;
 	private static String[] FILENAMES = {
 //            "/repeat.csv.gz"
-            "/repeat-data-cssc0.csv.gz"
+//            "/repeat-data-cssc0.csv.gz"
 //            "/repeat-data-0.8-random.csv.gz"
+	        "/city_temperature.csv.gz"
+//	        "/Stocks-Germany-sample.txt.gz",
 //	        "/SSD_HDD_benchmarks.csv.gz"
 			};
 
-//	        "/city_temperature.csv.gz",
-//	        "/Stocks-Germany-sample.txt.gz",
-	@Test
-	public void testChimp128() throws IOException {
-		for (String filename : FILENAMES) {
-			TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-			long totalSize = 0;
-			float totalBlocks = 0;
-			double[] values;
-			long encodingDuration = 0;
-			long decodingDuration = 0;
-			while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-				if (values == null) {
-					timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-					values = timeseriesFileReader.nextBlock();
-				}
-				ChimpN compressor = new ChimpN(128);
-				long start = System.nanoTime();
-				for (double value : values) {
-//                    System.out.println(" value: "+value);
-					compressor.addValue(value);
-				}
-		        compressor.close();
-		        encodingDuration += System.nanoTime() - start;
-		        totalSize += compressor.getSize();
-		        totalBlocks += 1;
 
-				ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
-				start = System.nanoTime();
-				List<Double> uncompressedValues = d.getValues();
-				decodingDuration += System.nanoTime() - start;
-				for(int i=0; i<values.length; i++) {
-		            assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
-		        }
-
-
-			}
-//            System.out.println(" totalSize:"+totalSize);
-//            System.out.println(" totalBlocks:"+totalBlocks);
-			System.out.println(String.format("Chimp128: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-		}
-	}
-
-	@Test
-    public void testChimp() throws IOException {
+    @Test
+    public void testChimpSnappy() throws IOException {
         for (String filename : FILENAMES) {
             TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
             long totalSize = 0;
             float totalBlocks = 0;
             double[] values;
             long encodingDuration = 0;
+            long compressDuration = 0;
             long decodingDuration = 0;
             while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
                 if (values == null) {
                     timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
                     values = timeseriesFileReader.nextBlock();
                 }
-                Chimp compressor = new Chimp();
+                ChimpN compressor = new ChimpN(128);
                 long start = System.nanoTime();
-//                System.out.println(values.length);
                 for (double value : values) {
+    //                    System.out.println(" value: "+value);
                     compressor.addValue(value);
                 }
                 compressor.close();
                 encodingDuration += System.nanoTime() - start;
-                totalSize += compressor.getSize();
-                totalBlocks += 1;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
 
-                ChimpDecompressor d = new ChimpDecompressor(compressor.getOut());
-                start = System.nanoTime();
-                List<Double> uncompressedValues = d.getValues();
-                decodingDuration += System.nanoTime() - start;
-                for(int i=0; i<values.length; i++) {
-                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
-                }
+//                                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+//                ZstdCodec codec = new ZstdCodec();
+//                codec.setConf(conf);
 
-            }
-//			System.out.println(" totalSize:"+totalSize);
-//			System.out.println(" totalBlocks:"+totalBlocks);
-            System.out.println(String.format("Chimp: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
+                byte[] input = compressor.getOut();
+//                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+                SnappyCodec codec = new SnappyCodec();
+//                codec.setConf(conf);
 
-	@Test
-    public void testCorilla() throws IOException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                ByteBufferBitOutput output = new ByteBufferBitOutput();
-                Compressor compressor = new Compressor(output);
-                long start = System.nanoTime();
-                for (double value : values) {
-                    compressor.addValue(value);
-                }
-                compressor.close();
-                encodingDuration += System.nanoTime() - start;
-                totalSize += compressor.getSize();
-                totalBlocks += 1;
-
-                ByteBuffer byteBuffer = output.getByteBuffer();
-                byteBuffer.flip();
-                ByteBufferBitInput input = new ByteBufferBitInput(byteBuffer);
-                Decompressor d = new Decompressor(input);
-
-                start = System.nanoTime();
-                List<Double> uncompressedValues = d.getValues();
-                decodingDuration += System.nanoTime() - start;
-                for(int i=0; i<values.length; i++) {
-                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
-                }
-
-            }
-            System.out.println(String.format("Gorilla: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
-
-	@Test
-    public void testFPC() throws IOException, InterruptedException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                FpcCompressor fpc = new FpcCompressor();
-
-                ByteBuffer buffer = ByteBuffer.allocate(TimeseriesFileReader.DEFAULT_BLOCK_SIZE * 10);
                 // Compress
-                long start = System.nanoTime();
-                fpc.compress(buffer, values);
-                encodingDuration += System.nanoTime() - start;
-
-                totalSize += buffer.position() * 8;
-                totalBlocks += 1;
-
-                buffer.flip();
-
-                FpcCompressor decompressor = new FpcCompressor();
-
-                double[] dest = new double[TimeseriesFileReader.DEFAULT_BLOCK_SIZE];
                 start = System.nanoTime();
-                decompressor.decompress(buffer, dest);
-                decodingDuration += System.nanoTime() - start;
-                assertArrayEquals(dest, values);
+                org.apache.hadoop.io.compress.Compressor compressor_compress = codec.createCompressor();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressionOutputStream out = codec.createOutputStream(baos, compressor_compress);
+                out.write(input);
+                out.close();
+                compressDuration += System.nanoTime() - start;
+                final byte[] compressed = baos.toByteArray();
+                totalSize += compressed.length * 8;
+                totalBlocks++;
+
+//                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+
 
             }
-            System.out.println(String.format("FPC: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+            System.out.println(String.format("Chimp128+Snappy: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
         }
     }
+
+    @Test
+    public void testChimpZstd() throws IOException {
+        for (String filename : FILENAMES) {
+            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+            long totalSize = 0;
+            float totalBlocks = 0;
+            double[] values;
+            long encodingDuration = 0;
+            long compressDuration = 0;
+            long decodingDuration = 0;
+            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+                if (values == null) {
+                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+                    values = timeseriesFileReader.nextBlock();
+                }
+                ChimpN compressor = new ChimpN(128);
+                long start = System.nanoTime();
+                for (double value : values) {
+                    //                    System.out.println(" value: "+value);
+                    compressor.addValue(value);
+                }
+                compressor.close();
+                encodingDuration += System.nanoTime() - start;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
+
+//                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+                ZstdCodec codec = new ZstdCodec();
+//                codec.setConf(conf);
+
+                byte[] input = compressor.getOut();
+
+
+                // Compress
+                start = System.nanoTime();
+                org.apache.hadoop.io.compress.Compressor compressor_compress = codec.createCompressor();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressionOutputStream out = codec.createOutputStream(baos, compressor_compress);
+                out.write(input);
+                out.close();
+                compressDuration += System.nanoTime() - start;
+                final byte[] compressed = baos.toByteArray();
+                totalSize += compressed.length * 8;
+                totalBlocks++;
+
+//                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+
+
+            }
+            System.out.println(String.format("Chimp128+Zstd: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+        }
+    }
+
+
+    @Test
+    public void testChimpLZ4() throws IOException {
+        for (String filename : FILENAMES) {
+            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+            long totalSize = 0;
+            float totalBlocks = 0;
+            double[] values;
+            long encodingDuration = 0;
+            long compressDuration = 0;
+            long decodingDuration = 0;
+            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+                if (values == null) {
+                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+                    values = timeseriesFileReader.nextBlock();
+                }
+                ChimpN compressor = new ChimpN(128);
+                long start = System.nanoTime();
+                for (double value : values) {
+                    //                    System.out.println(" value: "+value);
+                    compressor.addValue(value);
+                }
+                compressor.close();
+                encodingDuration += System.nanoTime() - start;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
+
+
+
+//                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+                Lz4Codec codec = new Lz4Codec();
+//                codec.setConf(conf);
+
+                byte[] input = compressor.getOut();
+
+
+                // Compress
+                start = System.nanoTime();
+                org.apache.hadoop.io.compress.Compressor compressor_compress = codec.createCompressor();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressionOutputStream out = codec.createOutputStream(baos, compressor_compress);
+                out.write(input);
+                out.close();
+                compressDuration += System.nanoTime() - start;
+                final byte[] compressed = baos.toByteArray();
+                totalSize += compressed.length * 8;
+                totalBlocks++;
+
+//                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+
+
+            }
+            System.out.println(String.format("Chimp128+LZ4: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+        }
+    }
+
+    @Test
+    public void testChimpBrotli() throws IOException {
+        for (String filename : FILENAMES) {
+            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+            long totalSize = 0;
+            float totalBlocks = 0;
+            double[] values;
+            long encodingDuration = 0;
+            long compressDuration = 0;
+            long decodingDuration = 0;
+            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+                if (values == null) {
+                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+                    values = timeseriesFileReader.nextBlock();
+                }
+                ChimpN compressor = new ChimpN(128);
+                long start = System.nanoTime();
+                for (double value : values) {
+                    //                    System.out.println(" value: "+value);
+                    compressor.addValue(value);
+                }
+                compressor.close();
+                encodingDuration += System.nanoTime() - start;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
+
+
+
+//                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+                BrotliCodec codec = new BrotliCodec();
+//                codec.setConf(conf);
+
+                byte[] input = compressor.getOut();
+
+
+                // Compress
+                start = System.nanoTime();
+                org.apache.hadoop.io.compress.Compressor compressor_compress = codec.createCompressor();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressionOutputStream out = codec.createOutputStream(baos, compressor_compress);
+                out.write(input);
+                out.close();
+                compressDuration += System.nanoTime() - start;
+                final byte[] compressed = baos.toByteArray();
+                totalSize += compressed.length * 8;
+                totalBlocks++;
+
+//                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+
+
+            }
+            System.out.println(String.format("Chimp128+Brotli: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+        }
+    }
+
+    @Test
+    public void testChimpXz() throws IOException {
+        for (String filename : FILENAMES) {
+            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+            long totalSize = 0;
+            float totalBlocks = 0;
+            double[] values;
+            long encodingDuration = 0;
+            long compressDuration = 0;
+            long decodingDuration = 0;
+            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+                if (values == null) {
+                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+                    values = timeseriesFileReader.nextBlock();
+                }
+                ChimpN compressor = new ChimpN(128);
+                long start = System.nanoTime();
+                for (double value : values) {
+                    //                    System.out.println(" value: "+value);
+                    compressor.addValue(value);
+                }
+                compressor.close();
+                encodingDuration += System.nanoTime() - start;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
+
+
+
+                Configuration conf = new Configuration();
+                // LZMA levels range from 1 to 9.
+                // Level 9 might take several minutes to complete. 3 is our default. 1 will be fast.
+                conf.setInt(LzmaCodec.LZMA_LEVEL_KEY, 3);
+                LzmaCodec codec = new LzmaCodec();
+                codec.setConf(conf);
+
+                byte[] input = compressor.getOut();
+
+
+                // Compress
+                start = System.nanoTime();
+                org.apache.hadoop.io.compress.Compressor compressor_compress = codec.createCompressor();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressionOutputStream out = codec.createOutputStream(baos, compressor_compress);
+                out.write(input);
+                out.close();
+                compressDuration += System.nanoTime() - start;
+                final byte[] compressed = baos.toByteArray();
+                totalSize += compressed.length * 8;
+                totalBlocks++;
+
+//                ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+
+
+            }
+            System.out.println(String.format("Chimp128+Xz: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+        }
+    }
+//	@Test
+//	public void testChimp128() throws IOException {
+//		for (String filename : FILENAMES) {
+//			TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//			long totalSize = 0;
+//			float totalBlocks = 0;
+//			double[] values;
+//			long encodingDuration = 0;
+//			long decodingDuration = 0;
+//			while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//				if (values == null) {
+//					timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//					values = timeseriesFileReader.nextBlock();
+//				}
+//				ChimpN compressor = new ChimpN(128);
+//				long start = System.nanoTime();
+//				for (double value : values) {
+////                    System.out.println(" value: "+value);
+//					compressor.addValue(value);
+//				}
+//		        compressor.close();
+//		        encodingDuration += System.nanoTime() - start;
+//		        totalSize += compressor.getSize();
+//		        totalBlocks += 1;
+//
+//				ChimpNDecompressor d = new ChimpNDecompressor(compressor.getOut(), 128);
+//				start = System.nanoTime();
+//				List<Double> uncompressedValues = d.getValues();
+//				decodingDuration += System.nanoTime() - start;
+//				for(int i=0; i<values.length; i++) {
+//		            assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//		        }
+//
+//
+//			}
+////            System.out.println(" totalSize:"+totalSize);
+////            System.out.println(" totalBlocks:"+totalBlocks);
+//			System.out.println(String.format("Chimp128: %s -, %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//		}
+//	}
+
+//	@Test
+//    public void testChimp() throws IOException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                Chimp compressor = new Chimp();
+//                long start = System.nanoTime();
+////                System.out.println(values.length);
+//                for (double value : values) {
+//                    compressor.addValue(value);
+//                }
+//                compressor.close();
+//                encodingDuration += System.nanoTime() - start;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
+//
+//                ChimpDecompressor d = new ChimpDecompressor(compressor.getOut());
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+//
+//            }
+////			System.out.println(" totalSize:"+totalSize);
+////			System.out.println(" totalBlocks:"+totalBlocks);
+//            System.out.println(String.format("Chimp: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
+
+//	@Test
+//    public void testCorilla() throws IOException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                ByteBufferBitOutput output = new ByteBufferBitOutput();
+//                Compressor compressor = new Compressor(output);
+//                long start = System.nanoTime();
+//                for (double value : values) {
+//                    compressor.addValue(value);
+//                }
+//                compressor.close();
+//                encodingDuration += System.nanoTime() - start;
+//                totalSize += compressor.getSize();
+//                totalBlocks += 1;
+//
+//                ByteBuffer byteBuffer = output.getByteBuffer();
+//                byteBuffer.flip();
+//                ByteBufferBitInput input = new ByteBufferBitInput(byteBuffer);
+//                Decompressor d = new Decompressor(input);
+//
+//                start = System.nanoTime();
+//                List<Double> uncompressedValues = d.getValues();
+//                decodingDuration += System.nanoTime() - start;
+//                for(int i=0; i<values.length; i++) {
+//                    assertEquals(values[i], uncompressedValues.get(i).doubleValue(), "Value did not match");
+//                }
+//
+//            }
+//            System.out.println(String.format("Gorilla: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
+//
+//	@Test
+//    public void testFPC() throws IOException, InterruptedException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                FpcCompressor fpc = new FpcCompressor();
+//
+//                ByteBuffer buffer = ByteBuffer.allocate(TimeseriesFileReader.DEFAULT_BLOCK_SIZE * 10);
+//                // Compress
+//                long start = System.nanoTime();
+//                fpc.compress(buffer, values);
+//                encodingDuration += System.nanoTime() - start;
+//
+//                totalSize += buffer.position() * 8;
+//                totalBlocks += 1;
+//
+//                buffer.flip();
+//
+//                FpcCompressor decompressor = new FpcCompressor();
+//
+//                double[] dest = new double[TimeseriesFileReader.DEFAULT_BLOCK_SIZE];
+//                start = System.nanoTime();
+//                decompressor.decompress(buffer, dest);
+//                decodingDuration += System.nanoTime() - start;
+//                assertArrayEquals(dest, values);
+//
+//            }
+//            System.out.println(String.format("FPC: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
 
 //	   @Test
 //	    public void testChimp128NoIndex() throws IOException {
@@ -252,277 +574,277 @@ public class TestDoublePrecision {
 //	        }
 //	    }
 
-
-    @Test
-    public void testSnappy() throws IOException, InterruptedException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
-                for(double d : values) {
-                   bb.putDouble(d);
-                }
-                byte[] input = bb.array();
-
-                Configuration conf = HBaseConfiguration.create();
-                // ZStandard levels range from 1 to 22.
-                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
-                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
-                SnappyCodec codec = new SnappyCodec();
-                codec.setConf(conf);
-
-                // Compress
-                long start = System.nanoTime();
-                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
-                out.write(input);
-                out.close();
-                encodingDuration += System.nanoTime() - start;
-                final byte[] compressed = baos.toByteArray();
-                totalSize += compressed.length * 8;
-                totalBlocks++;
-
-                final byte[] plain = new byte[input.length];
-                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
-                start = System.nanoTime();
-                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
-                IOUtils.readFully(in, plain, 0, plain.length);
-                in.close();
-                double[] uncompressed = toDoubleArray(plain);
-                decodingDuration += System.nanoTime() - start;
-                // Decompressed bytes should equal the original
-                for(int i = 0; i < values.length; i++) {
-                    assertEquals(values[i], uncompressed[i], "Value did not match");
-                }
-            }
-            System.out.println(String.format("Snappy: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
-
-
-    @Test
-    public void testZstd() throws IOException, InterruptedException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
-                for(double d : values) {
-                   bb.putDouble(d);
-                }
-                byte[] input = bb.array();
-
-                Configuration conf = HBaseConfiguration.create();
-                // ZStandard levels range from 1 to 22.
-                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
-                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
-                ZstdCodec codec = new ZstdCodec();
-                codec.setConf(conf);
-
-                // Compress
-                long start = System.nanoTime();
-                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
-                out.write(input);
-                out.close();
-                encodingDuration += System.nanoTime() - start;
-                final byte[] compressed = baos.toByteArray();
-                totalSize += compressed.length * 8;
-                totalBlocks++;
-
-                final byte[] plain = new byte[input.length];
-                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
-                start = System.nanoTime();
-                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
-                IOUtils.readFully(in, plain, 0, plain.length);
-                in.close();
-                double[] uncompressed = toDoubleArray(plain);
-                decodingDuration += System.nanoTime() - start;
-                // Decompressed bytes should equal the original
-                for(int i = 0; i < values.length; i++) {
-                    assertEquals(values[i], uncompressed[i], "Value did not match");
-                }
-            }
-            System.out.println(String.format("Zstd: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
-
-    @Test
-    public void testLZ4() throws IOException, InterruptedException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
-                for(double d : values) {
-                   bb.putDouble(d);
-                }
-                byte[] input = bb.array();
-
-                Lz4Codec codec = new Lz4Codec();
-
-                // Compress
-                long start = System.nanoTime();
-                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
-                out.write(input);
-                out.close();
-                encodingDuration += System.nanoTime() - start;
-                final byte[] compressed = baos.toByteArray();
-                totalSize += compressed.length * 8;
-                totalBlocks++;
-
-                final byte[] plain = new byte[input.length];
-                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
-                start = System.nanoTime();
-                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
-                IOUtils.readFully(in, plain, 0, plain.length);
-                in.close();
-                double[] uncompressed = toDoubleArray(plain);
-                decodingDuration += System.nanoTime() - start;
-                // Decompressed bytes should equal the original
-                for(int i = 0; i < values.length; i++) {
-                    assertEquals(values[i], uncompressed[i], "Value did not match");
-                }
-            }
-            System.out.println(String.format("LZ4: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
-
-    @Test
-    public void testBrotli() throws IOException, InterruptedException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
-                for(double d : values) {
-                   bb.putDouble(d);
-                }
-                byte[] input = bb.array();
-
-                BrotliCodec codec = new BrotliCodec();
-
-                // Compress
-                long start = System.nanoTime();
-                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
-                out.write(input);
-                out.close();
-                encodingDuration += System.nanoTime() - start;
-                final byte[] compressed = baos.toByteArray();
-                totalSize += compressed.length * 8;
-                totalBlocks++;
-
-                final byte[] plain = new byte[input.length];
-                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
-                start = System.nanoTime();
-                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
-                IOUtils.readFully(in, plain, 0, plain.length);
-                in.close();
-                double[] uncompressed = toDoubleArray(plain);
-                decodingDuration += System.nanoTime() - start;
-                // Decompressed bytes should equal the original
-                for(int i = 0; i < values.length; i++) {
-                    assertEquals(values[i], uncompressed[i], "Value did not match");
-                }
-            }
-            System.out.println(String.format("Brotli: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
-
-    @Test
-    public void testXz() throws IOException, InterruptedException {
-        for (String filename : FILENAMES) {
-            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-            long totalSize = 0;
-            float totalBlocks = 0;
-            double[] values;
-            long encodingDuration = 0;
-            long decodingDuration = 0;
-            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
-                if (values == null) {
-                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
-                    values = timeseriesFileReader.nextBlock();
-                }
-                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
-                for(double d : values) {
-                   bb.putDouble(d);
-                }
-                byte[] input = bb.array();
-
-                Configuration conf = new Configuration();
-                // LZMA levels range from 1 to 9.
-                // Level 9 might take several minutes to complete. 3 is our default. 1 will be fast.
-                conf.setInt(LzmaCodec.LZMA_LEVEL_KEY, 3);
-                LzmaCodec codec = new LzmaCodec();
-                codec.setConf(conf);
-
-                // Compress
-                long start = System.nanoTime();
-                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
-                out.write(input);
-                out.close();
-                encodingDuration += System.nanoTime() - start;
-                final byte[] compressed = baos.toByteArray();
-                totalSize += compressed.length * 8;
-                totalBlocks++;
-
-                final byte[] plain = new byte[input.length];
-                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
-                start = System.nanoTime();
-                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
-                IOUtils.readFully(in, plain, 0, plain.length);
-                in.close();
-                double[] uncompressed = toDoubleArray(plain);
-                decodingDuration += System.nanoTime() - start;
-                // Decompressed bytes should equal the original
-                for(int i = 0; i < values.length; i++) {
-                    assertEquals(values[i], uncompressed[i], "Value did not match");
-                }
-            }
-            System.out.println(String.format("Xz: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
-        }
-    }
+//
+//    @Test
+//    public void testSnappy() throws IOException, InterruptedException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
+//                for(double d : values) {
+//                   bb.putDouble(d);
+//                }
+//                byte[] input = bb.array();
+//
+//                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+//                SnappyCodec codec = new SnappyCodec();
+//                codec.setConf(conf);
+//
+//                // Compress
+//                long start = System.nanoTime();
+//                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
+//                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
+//                out.write(input);
+//                out.close();
+//                encodingDuration += System.nanoTime() - start;
+//                final byte[] compressed = baos.toByteArray();
+//                totalSize += compressed.length * 8;
+//                totalBlocks++;
+//
+//                final byte[] plain = new byte[input.length];
+//                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
+//                start = System.nanoTime();
+//                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
+//                IOUtils.readFully(in, plain, 0, plain.length);
+//                in.close();
+//                double[] uncompressed = toDoubleArray(plain);
+//                decodingDuration += System.nanoTime() - start;
+//                // Decompressed bytes should equal the original
+//                for(int i = 0; i < values.length; i++) {
+//                    assertEquals(values[i], uncompressed[i], "Value did not match");
+//                }
+//            }
+//            System.out.println(String.format("Snappy: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
+//
+//
+//    @Test
+//    public void testZstd() throws IOException, InterruptedException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
+//                for(double d : values) {
+//                   bb.putDouble(d);
+//                }
+//                byte[] input = bb.array();
+//
+//                Configuration conf = HBaseConfiguration.create();
+//                // ZStandard levels range from 1 to 22.
+//                // Level 22 might take up to a minute to complete. 3 is the Hadoop default, and will be fast.
+//                conf.setInt(CommonConfigurationKeys.IO_COMPRESSION_CODEC_ZSTD_LEVEL_KEY, 3);
+//                ZstdCodec codec = new ZstdCodec();
+//                codec.setConf(conf);
+//
+//                // Compress
+//                long start = System.nanoTime();
+//                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
+//                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
+//                out.write(input);
+//                out.close();
+//                encodingDuration += System.nanoTime() - start;
+//                final byte[] compressed = baos.toByteArray();
+//                totalSize += compressed.length * 8;
+//                totalBlocks++;
+//
+//                final byte[] plain = new byte[input.length];
+//                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
+//                start = System.nanoTime();
+//                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
+//                IOUtils.readFully(in, plain, 0, plain.length);
+//                in.close();
+//                double[] uncompressed = toDoubleArray(plain);
+//                decodingDuration += System.nanoTime() - start;
+//                // Decompressed bytes should equal the original
+//                for(int i = 0; i < values.length; i++) {
+//                    assertEquals(values[i], uncompressed[i], "Value did not match");
+//                }
+//            }
+//            System.out.println(String.format("Zstd: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
+//
+//    @Test
+//    public void testLZ4() throws IOException, InterruptedException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
+//                for(double d : values) {
+//                   bb.putDouble(d);
+//                }
+//                byte[] input = bb.array();
+//
+//                Lz4Codec codec = new Lz4Codec();
+//
+//                // Compress
+//                long start = System.nanoTime();
+//                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
+//                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
+//                out.write(input);
+//                out.close();
+//                encodingDuration += System.nanoTime() - start;
+//                final byte[] compressed = baos.toByteArray();
+//                totalSize += compressed.length * 8;
+//                totalBlocks++;
+//
+//                final byte[] plain = new byte[input.length];
+//                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
+//                start = System.nanoTime();
+//                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
+//                IOUtils.readFully(in, plain, 0, plain.length);
+//                in.close();
+//                double[] uncompressed = toDoubleArray(plain);
+//                decodingDuration += System.nanoTime() - start;
+//                // Decompressed bytes should equal the original
+//                for(int i = 0; i < values.length; i++) {
+//                    assertEquals(values[i], uncompressed[i], "Value did not match");
+//                }
+//            }
+//            System.out.println(String.format("LZ4: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
+//
+//    @Test
+//    public void testBrotli() throws IOException, InterruptedException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
+//                for(double d : values) {
+//                   bb.putDouble(d);
+//                }
+//                byte[] input = bb.array();
+//
+//                BrotliCodec codec = new BrotliCodec();
+//
+//                // Compress
+//                long start = System.nanoTime();
+//                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
+//                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
+//                out.write(input);
+//                out.close();
+//                encodingDuration += System.nanoTime() - start;
+//                final byte[] compressed = baos.toByteArray();
+//                totalSize += compressed.length * 8;
+//                totalBlocks++;
+//
+//                final byte[] plain = new byte[input.length];
+//                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
+//                start = System.nanoTime();
+//                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
+//                IOUtils.readFully(in, plain, 0, plain.length);
+//                in.close();
+//                double[] uncompressed = toDoubleArray(plain);
+//                decodingDuration += System.nanoTime() - start;
+//                // Decompressed bytes should equal the original
+//                for(int i = 0; i < values.length; i++) {
+//                    assertEquals(values[i], uncompressed[i], "Value did not match");
+//                }
+//            }
+//            System.out.println(String.format("Brotli: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
+//
+//    @Test
+//    public void testXz() throws IOException, InterruptedException {
+//        for (String filename : FILENAMES) {
+//            TimeseriesFileReader timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//            long totalSize = 0;
+//            float totalBlocks = 0;
+//            double[] values;
+//            long encodingDuration = 0;
+//            long decodingDuration = 0;
+//            while ((values = timeseriesFileReader.nextBlock()) != null || totalBlocks < MINIMUM_TOTAL_BLOCKS) {
+//                if (values == null) {
+//                    timeseriesFileReader = new TimeseriesFileReader(getClass().getResourceAsStream(filename));
+//                    values = timeseriesFileReader.nextBlock();
+//                }
+//                ByteBuffer bb = ByteBuffer.allocate(values.length * 8);
+//                for(double d : values) {
+//                   bb.putDouble(d);
+//                }
+//                byte[] input = bb.array();
+//
+//                Configuration conf = new Configuration();
+//                // LZMA levels range from 1 to 9.
+//                // Level 9 might take several minutes to complete. 3 is our default. 1 will be fast.
+//                conf.setInt(LzmaCodec.LZMA_LEVEL_KEY, 3);
+//                LzmaCodec codec = new LzmaCodec();
+//                codec.setConf(conf);
+//
+//                // Compress
+//                long start = System.nanoTime();
+//                org.apache.hadoop.io.compress.Compressor compressor = codec.createCompressor();
+//                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//                CompressionOutputStream out = codec.createOutputStream(baos, compressor);
+//                out.write(input);
+//                out.close();
+//                encodingDuration += System.nanoTime() - start;
+//                final byte[] compressed = baos.toByteArray();
+//                totalSize += compressed.length * 8;
+//                totalBlocks++;
+//
+//                final byte[] plain = new byte[input.length];
+//                org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
+//                start = System.nanoTime();
+//                CompressionInputStream in = codec.createInputStream(new ByteArrayInputStream(compressed), decompressor);
+//                IOUtils.readFully(in, plain, 0, plain.length);
+//                in.close();
+//                double[] uncompressed = toDoubleArray(plain);
+//                decodingDuration += System.nanoTime() - start;
+//                // Decompressed bytes should equal the original
+//                for(int i = 0; i < values.length; i++) {
+//                    assertEquals(values[i], uncompressed[i], "Value did not match");
+//                }
+//            }
+//            System.out.println(String.format("Xz: %s - , %.2f, %.2f,  %.2f", filename, totalSize / (totalBlocks * TimeseriesFileReader.DEFAULT_BLOCK_SIZE), encodingDuration / (totalBlocks*1000), decodingDuration / (totalBlocks*1000)));
+//        }
+//    }
 
 
     public static double[] toDoubleArray(byte[] byteArray){

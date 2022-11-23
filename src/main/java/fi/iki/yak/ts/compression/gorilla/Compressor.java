@@ -142,4 +142,8 @@ public class Compressor {
     public int getSize() {
     	return size;
     }
+
+//    public byte[] getOut() {
+//        return out.getByteBuffer();
+//    }
 }
